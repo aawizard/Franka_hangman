@@ -272,6 +272,7 @@ class Brain(Node):
     async def timer_callback(self):
         """Timer running at a specified frequency."""
         if self.state == State.INITIALIZE:
+            self.get_logger().error('Initializing the board')
             # Initializes the kickstart feature then waits for completion
             await self.kickstart_client.call_async(request=Empty.Request())
             goal_js = MovePose.Request()

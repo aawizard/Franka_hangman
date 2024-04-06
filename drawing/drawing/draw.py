@@ -328,7 +328,8 @@ class Drawing(Node):
         response: None
 
         """
-        await self.board_future
+        self.get_logger().warn("MOVEIT MOTION PLAN REQUEST RECEIVED")
+        # await self.board_future
 
         self.get_logger().info("MOVEIT MOTION PLAN REQUEST RECEIVED")
 
@@ -346,7 +347,7 @@ class Drawing(Node):
         self.plan_future = Future()
         self.execute_future = Future()
         self.state = State.REMOVE_BOARD
-        await self.board_future
+        # await self.board_future
 
         return response
 

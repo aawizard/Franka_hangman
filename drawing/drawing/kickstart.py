@@ -70,6 +70,7 @@ class Kickstart(Node):
     async def kickstart_callback(self, request, response):
         """Queuing each component to be drawn for game setup."""
         # Calibrate once
+        self.get_logger().error('Calibrating...')
         await self.cal_client.call_async(request=Empty.Request())
         self.get_logger().info('Finished calibrating!')
 

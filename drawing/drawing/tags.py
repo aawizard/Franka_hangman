@@ -137,6 +137,7 @@ class Tags(Node):
         Then waits for an updated transform and creates a board transform.
 
         """
+        self.get_logger().info("Calibrating in tags node...")
         self.state = State.CALIBRATE
 
         goal_js = MovePose.Request()
@@ -151,17 +152,22 @@ class Tags(Node):
         )
         goal_js.use_force_control = False
         # moving robot to calibrate position
+        self.get_logger().error("Moving to calibrate position")
         await self.move_js_client.call_async(goal_js)
         time.sleep(2)
         self.goal_state = "done"
+        self.get_logger().error("finding Tag...")
         ansT, ansR = await self.future
+        self.get_logger().error("Tag found")
         ansT1, ansT2 = ansT
         ansR1, ansR2 = ansR
-        while ansT1[0] == 0.0 and ansT2[0]:
+        
+        while ansT1[0] == 0.0 :
             ansT, ansR = await self.future
             ansT1, ansT2 = ansT
             ansR1, ansR2 = ansR
-            self.get_logger().info("value set in service")
+            self.get_logger().error(f"ansT1: {ansT1}")
+            self.get_logger().error("value set in service")
         Tt1b = np.array([[1, 0, 0, 0.05], [0, 1, 0, 0.05],
                         [0, 0, 1, 0], [0, 0, 0, 1]])
         Trt1 = array_to_transform_matrix(ansT1, ansR1)
@@ -275,7 +281,7 @@ class Tags(Node):
             output_pose: updated list of poses
 
         """
-        ansT, ansR = self.get_transform("board", "panda_hand_tcp")
+        ansT, ansR, _ = self.get_transform("board", "panda_hand_tcp")
 
         # positive z is out of the board
         if request.into_board:
@@ -323,8 +329,8 @@ class Tags(Node):
         response (Empty): An empty service response.
 
         """
-        At, Aq = self.get_transform("panda_link0", "panda_hand_tcp")
-        Bt, Bq = self.get_transform("camera_link", "tag56")
+        At, Aq, _ = self.get_transform("panda_link0", "panda_hand_tcp")
+        Bt, Bq, _ = self.get_transform("camera_link", "tag56")
 
         A = array_to_transform_matrix(At, Aq)
         B = array_to_transform_matrix(Bt, Bq)
@@ -359,34 +365,36 @@ class Tags(Node):
             trans = self.buffer.lookup_transform(
                 parent_frame, child_frame, rclpy.time.Time()
             )
+            time = trans.header.stamp
             transl = trans.transform.translation
             rot = trans.transform.rotation
             trans = [transl.x, transl.y, transl.z]
             rotation = [rot.x, rot.y, rot.z, rot.w]
-            return trans, rotation
+            return trans, rotation, time
 
         except tf2_ros.LookupException as e:
             # the frames don't exist yet
             self.get_logger().info(f"Lookup exception: {e}")
-            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]
+            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0], self.get_clock().now().to_msg()
         except tf2_ros.ConnectivityException as e:
             # the tf tree has a disconnection
             self.get_logger().info(f"Connectivity exception: {e}")
-            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]
+            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0], self.get_clock().now().to_msg()
         except tf2_ros.ExtrapolationException as e:
             # the times are two far apart to extrapolate
             self.get_logger().info(f"Extrapolation exception: {e}")
-            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]
+            return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0], self.get_clock().now().to_msg()
 
     async def timer_callback(self):
         """Publish the panda_link0 to board transform constantly."""
+        time = self.get_clock().now().to_msg()
         if self.state == State.CALIBRATE and self.goal_state == "done":
-            ansT1, ansR1 = self.get_transform("panda_link0", "tag11")
-            ansT2, ansR2 = self.get_transform("panda_link0", "tag12")
+            ansT1, ansR1, time = self.get_transform("panda_link0", "tag11")
+            ansT2, ansR2, time = self.get_transform("panda_link0", "tag11")
             # self.get_logger().info(f'{ansT, ansR}')
             self.future.set_result([[ansT1, ansT2], [ansR1, ansR2]])
-        self.robot_board.header.stamp = self.get_clock().now().to_msg()
-        self.robot_board_write.header.stamp = self.get_clock().now().to_msg()
+        self.robot_board.header.stamp = time
+        self.robot_board_write.header.stamp = time
         self.broadcaster.sendTransform(self.robot_board)
         self.broadcaster.sendTransform(self.robot_board_write)
 

@@ -1,7 +1,7 @@
 """
 Execute trajectories planned for the franka robot.
 
-Execute trajectories planned for the franka robot at 10hz. This is a stand in
+Execute trajectories planned for the franka robot at 100hz. This is a stand in
 for the MoveIT execute trajectory action, since MoveIT doesn't allow us to
 cancel goals. When a trajectory is planned by either the MoveGroup motion
 planner or the /compute_cartesian_path service, the result is returned in the
@@ -32,6 +32,8 @@ import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.task import Future
+
+from drawing.path_plan_execute import Path_Plan_Execute
 
 from trajectory_msgs.msg import JointTrajectory
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -68,8 +70,12 @@ class Executor(Node):
         self.update_trajectory_callback_group = \
             MutuallyExclusiveCallbackGroup()
 
+        # i said this is 10hz in the docstring at the top, but it's actually
+        # 100hz!? what's up with that? I wonder how the system reponds if I
+        # lower this
+        self.period = 0.01
         self.timer = self.create_timer(
-            0.01, self.timer_callback,
+            self.period, self.timer_callback,
             callback_group=self.timer_callback_group)
 
         # create publishers
@@ -124,6 +130,9 @@ class Executor(Node):
         self.future = Future()
 
         self.i = 1
+        
+        # NEW AS OF 4/6/2024
+        self.path_planner = Path_Plan_Execute(self)
 
     def get_transform(self, parent_frame, child_frame):
         """
@@ -211,7 +220,7 @@ class Executor(Node):
 
         return response
 
-    async def replan_trajectory(self, into_the_board):
+    async def replan_trajectory(self, into_the_board, error):
         """
         Replan a trajectory that failed.
 
@@ -239,7 +248,7 @@ class Executor(Node):
             f"pose to be adjusted out of board: {self.pose}")
         update_trajectory_response = await self.update_trajectory_client.\
             call_async(UpdateTrajectory.Request(
-                input_pose=self.pose, into_board=into_the_board))
+                input_pose=self.pose, into_board=into_the_board, error=error))
 
         self.pose = update_trajectory_response.output_pose
 
@@ -278,12 +287,13 @@ class Executor(Node):
             if self.replan:
                 # clear the current trajectories first, as we don't want to
                 # execute them anymore
-                await self.replan_trajectory(False)
+                # await self.replan_trajectory(False, )
 
                 self.use_control_loop = True
                 self.use_force_control = False
                 self.initial_trajectory_angle = self.joint_trajectories[0].\
                     points[0].positions[5]
+                self.output_angle = self.initial_trajectory_angle
 
             else:
 
@@ -294,8 +304,8 @@ class Executor(Node):
         elif self.joint_trajectories and self.state == State.PUBLISH and \
                 self.i % 10 == 0:
 
+            # removed integral term 4/6/2024
             Kp = 0.0029
-            Ki = 0.000005
             Kd = 0.0009
 
             self.get_logger().info(
@@ -308,30 +318,41 @@ class Executor(Node):
                 self.get_logger().info(
                     f"original joint pos: {self.output_angle}")
                 force_error = 2.3 - self.ee_force
-                self.integral_force_error += force_error * 0.1
                 angle_adjustment = Kp * force_error + \
-                    Ki * self.integral_force_error + \
                     Kd * (force_error - self.previous_force_error)
-                self.output_angle += angle_adjustment
-                self.joint_trajectories[0].points[0].positions[5] = \
-                    self.output_angle
-                self.previous_force_error = force_error
+                self.get_logger().info(f"angle adjustment: {angle_adjustment}")
+                if angle_adjustment > 0.5:
+                    await self.replan_trajectory(False, angle_adjustment)
+                    self.use_control_loop = False
+                elif angle_adjustment < -0.5:
+                    await self.replan_trajectory(True, angle_adjustment)
+                    self.use_control_loop = False
+                # here I was adjusting joint 6 of the arm to move the marker
+                # away from/into the board. I don't want to do that anymore, 
+                # and will now try to use IK callback to move the position of
+                # the end effector back normal to the plane of the whiteboard.
+
+                # self.output_angle += angle_adjustment
+                # self.joint_trajectories[0].points[0].positions[5] = \
+                #     self.output_angle
+                # self.previous_force_error = force_error
+
                 # here i'm assuming joint angle 6 is basically the same
                 # for all trjactories, which may or may not be true.
 
-                difference_from_initial = self.output_angle - \
-                    self.initial_trajectory_angle
+                # difference_from_initial = self.output_angle - \
+                #     self.initial_trajectory_angle
 
-                if difference_from_initial > 0.09:
-                    self.get_logger().info("tilted too far forward, \
-                                           replanning")
-                    await self.replan_trajectory(False)
-                    self.use_control_loop = False
-                elif difference_from_initial < -0.09:
-                    self.get_logger().info("tilted too far backward,\
-                                           replannign")
-                    await self.replan_trajectory(True)
-                    self.use_control_loop = False
+                # if difference_from_initial > 0.09:
+                #     self.get_logger().info("tilted too far forward, \
+                #                            replanning")
+                #     await self.replan_trajectory(False)
+                #     self.use_control_loop = False
+                # elif difference_from_initial < -0.09:
+                #     self.get_logger().info("tilted too far backward,\
+                #                            replanning")
+                #     await self.replan_trajectory(True, angle_adjustment)
+                #     self.use_control_loop = False
 
                 self.pub.publish(self.joint_trajectories[0])
                 self.joint_trajectories.pop(0)

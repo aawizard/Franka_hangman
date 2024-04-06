@@ -1,4 +1,5 @@
 geometry_msgs/Pose input_pose
 bool into_board
+float32 error
 ---
 geometry_msgs/Pose output_pose

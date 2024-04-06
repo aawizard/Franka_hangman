@@ -409,8 +409,8 @@ class Path_Plan_Execute():
             self.node.get_logger().info("here2")
 
             self.send_goal_future = self.movegroup_client.send_goal_async(
-                movegroup_goal_msg
-                )
+                movegroup_goal_msg)
+
             self.send_goal_future.add_done_callback(
                 self.movegroup_goal_response_callback)
         else:
@@ -468,6 +468,7 @@ class Path_Plan_Execute():
             f"movegroup_result: {self.movegroup_status}")
 
         self.planned_trajectory = self.movegroup_result.planned_trajectory
+        self.get_logger().info(f"planned trajectory: {self.planned_trajectory}")
         self.node.get_logger().info("Trajectory Planned!")
 
     def execute_individual_trajectories(self):

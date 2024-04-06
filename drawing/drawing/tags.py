@@ -285,9 +285,9 @@ class Tags(Node):
 
         # positive z is out of the board
         if request.into_board:
-            z = ansT[2] + 0.001
+            z = ansT[2] + request.error
         else:
-            z = ansT[2] - 0.003
+            z = ansT[2] - request.error
 
         self.get_logger().info("reached update trajcetory callback")
 

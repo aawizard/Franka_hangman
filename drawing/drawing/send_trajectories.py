@@ -294,9 +294,9 @@ class Executor(Node):
         elif self.joint_trajectories and self.state == State.PUBLISH and \
                 self.i % 10 == 0:
 
-            Kp = 0.0029
-            Ki = 0.000005
-            Kd = 0.0009
+            Kp = 0.003
+            Ki = 0.00000
+            Kd = 0.001
 
             self.get_logger().info(
                 f"user control loop: {self.use_control_loop}")
@@ -322,14 +322,14 @@ class Executor(Node):
                 difference_from_initial = self.output_angle - \
                     self.initial_trajectory_angle
 
-                if difference_from_initial > 0.09:
+                if difference_from_initial > 0.04:
                     self.get_logger().info("tilted too far forward, \
                                            replanning")
                     await self.replan_trajectory(False)
                     self.use_control_loop = False
-                elif difference_from_initial < -0.09:
+                elif difference_from_initial < -0.04:
                     self.get_logger().info("tilted too far backward,\
-                                           replannign")
+                                           replanning")
                     await self.replan_trajectory(True)
                     self.use_control_loop = False
 

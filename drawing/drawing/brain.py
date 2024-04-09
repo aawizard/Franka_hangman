@@ -63,6 +63,7 @@ class Brain(Node):
         self.mp_callback_group = MutuallyExclusiveCallbackGroup()
         self.cartesian_cb_group = MutuallyExclusiveCallbackGroup()
         self.kick_cb_group = MutuallyExclusiveCallbackGroup()
+        self.cal_callback_group = MutuallyExclusiveCallbackGroup()
 
         # Create clients
         self.board_service_client = self.create_client(
@@ -73,7 +74,8 @@ class Brain(Node):
             Cartesian, '/cartesian_mp', callback_group=self.cartesian_cb_group)
         self.kickstart_client = self.create_client(
             Empty, '/kickstart_service', callback_group=self.kick_cb_group)
-
+        self.cal_client = self.create_client(
+            Empty, 'calibrate', callback_group=self.cal_callback_group)
         while not self.board_service_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Board service not available, waiting...')
         while not self.movepose_client.wait_for_service(timeout_sec=1.0):
@@ -82,7 +84,9 @@ class Brain(Node):
             self.get_logger().info('Carisian service unavailable, waiting...')
         while not self.kickstart_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Kickstart service unavailable, waiting...')
-
+        while not self.cal_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Calibrate service not available,\
+                                   waiting...')
         # Create subscription from hangman.py
         self.hangman = self.create_subscription(
             LetterMsg, '/writer',
@@ -217,7 +221,7 @@ class Brain(Node):
         self.ocr_pub.publish(Bool(data=False))
 
         # Turns off the OCR pipeline
-        self.ocr_pub.publish(False)
+        # self.ocr_pub.publish(False)
 
         self.shape_list = []
         for i in range(0, len(self.last_message.positions)):
@@ -262,9 +266,11 @@ class Brain(Node):
 
         request3 = Cartesian.Request()
         request3.poses = pose_list[1:]
+        request3.poses.append(pose_list[-1])
         request3.velocity = 0.015
         request3.replan = True
         request3.use_force_control = shape.onboard[1:]
+        request3.use_force_control.append(False)
         await self.cartesian_mp_client.call_async(request3)
 
         self.shape_list.pop(0)
@@ -273,8 +279,13 @@ class Brain(Node):
         """Timer running at a specified frequency."""
         if self.state == State.INITIALIZE:
             self.get_logger().error('Initializing the board')
+            
+            
             # Initializes the kickstart feature then waits for completion
-            await self.kickstart_client.call_async(request=Empty.Request())
+            # await self.kickstart_client.call_async(request=Empty.Request())
+            await self.cal_client.call_async(request=Empty.Request())
+            
+            
             goal_js = MovePose.Request()
             goal_js.target_pose.position = Point(
                 x=0.545029890155533, y=0.05943234468738731, z=0.58935441642377)
@@ -295,21 +306,22 @@ class Brain(Node):
                 await self.letter_writer(self.shape_list[0])
 
             else:
-                request4 = Cartesian.Request()
-                request4.poses = [Pose(
-                    position=Point(
-                        x=0.30744234834406486,
-                        y=-0.17674628233240325,
-                        z=0.5725350884705022),
-                    orientation=Quaternion(
-                        x=0.7117299678289105,
-                        y=-0.5285053338340909,
-                        z=0.268057323473255,
-                        w=0.37718408812611504,))]
-                request4.velocity = 0.1
-                request4.replan = False
-                request4.use_force_control = [False]
-                await self.cartesian_mp_client.call_async(request4)
+                await self.cal_client.call_async(request=Empty.Request())
+                # request4 = Cartesian.Request()
+                # request4.poses = [Pose(
+                #     position=Point(
+                #         x=0.30744234834406486,
+                #         y=-0.17674628233240325,
+                #         z=0.5725350884705022),
+                #     orientation=Quaternion(
+                #         x=0.7117299678289105,
+                #         y=-0.5285053338340909,
+                #         z=0.268057323473255,
+                #         w=0.37718408812611504,))]
+                # request4.velocity = 0.1
+                # request4.replan = False
+                # request4.use_force_control = [False]
+                # await self.cartesian_mp_client.call_async(request4)
 
                 goal_js = MovePose.Request()
                 goal_js.target_pose.position = Point(

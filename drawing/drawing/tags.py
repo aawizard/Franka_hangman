@@ -262,9 +262,34 @@ class Tags(Node):
             response_a.append(pos)
             self.get_logger().info(f"Now the list is: {response_a}")
 
+        # x, y = request.x[-1], request.y[-1]
+        # z = 0.1
+
+        # Tla = np.array(
+        #     [
+        #         [-0.03948997, 0.99782373, 0.05280484, x],
+        #         [0.06784999, 0.05540183, -0.99615612, y],
+        #         [-0.9969137, -0.03575537, -0.06989015, z],
+        #         [0.0, 0.0, 0.0, 1.0],
+        #     ]
+        # )
+        # Tra = Trl @ Tla
+        # position, rotation = matrix_to_position_quaternion(Tra, 1)
+        # pos = Pose()    
+        # pos.position = position
+        # pos.orientation = rotation
+        # response_a.append(pos)
+        # self.get_logger().info(f"Now the list is: {request.onboard}")
+        # request.onboard.append(False)
+        # (
+        #     self.robot_board_write.transform.translation,
+        #     self.robot_board_write.transform.rotation,
+        # ) = matrix_to_position_quaternion(Tra)
+        
         self.get_logger().info("where_to_write3")
         response.pose_list = response_a
         response.use_force_control = request.onboard
+        # response.use_force_control.append(False)
         return response
 
     def update_trajectory_cb(self, request, response):

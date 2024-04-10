@@ -158,7 +158,7 @@ class Brain(Node):
 
     def create_manual_point(self, letter, idx):
         """Creates points for every letter maually and in 1-D"""
-        via_points_A = [(0, 0), (30, 70), (60, 0), (45, 35), (15, 35)]
+        via_points_A = [(0.01, 0.01), (30, 70), (60, 0), (45, 35), (15, 35)]
         via_points_B = [(10, 0), (10, 70), (20, 70), (50, 47),
                         (20, 35), (50, 23), (20, 0), (10, 0)]
         via_points_C = [(50, 60), (30, 70), (10, 35), (30, 0), (50, 10)]

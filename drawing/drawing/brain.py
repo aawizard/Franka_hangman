@@ -21,8 +21,6 @@ from rclpy.node import Node
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from std_srvs.srv import Empty
 from std_msgs.msg import Bool
-from matplotlib.font_manager import FontProperties
-from matplotlib.textpath import TextToPath
 from brain_interfaces.srv import BoardTiles, MovePose, Cartesian
 from brain_interfaces.msg import LetterMsg
 from geometry_msgs.msg import Pose, Point, Quaternion
@@ -155,19 +153,83 @@ class Brain(Node):
                 point_dict = {letter: {'xlist': xlist, 'ylist': ylist}}
                 self.alphabet.update(point_dict)
             else:  # All letters of alphabet
-                fp = FontProperties(
-                    family="Liberation Sans Narrow", style="normal")
-                verts, codes = TextToPath().get_text_path(fp, letters[i])
-                xlist = []
-                ylist = []
-                for j in range(0, len(verts) - 1):
-                    if verts[j][0] > 0:
-                        xlist.append(
-                            verts[j][0] * self.scale_factor * self.board_scale)
-                        ylist.append(
-                            verts[j][1] * self.scale_factor * self.board_scale)
-                point_dict = {letter: {'xlist': xlist, 'ylist': ylist}}
+                point_dict = self.create_manual_point(letter, i)
                 self.alphabet.update(point_dict)
+
+    def create_manual_point(self, letter, idx):
+        """Creates points for every letter maually and in 1-D"""
+        via_points_A = [(0, 0), (30, 70), (60, 0), (45, 35), (15, 35)]
+        via_points_B = [(10, 0), (10, 70), (20, 70), (50, 47),
+                        (20, 35), (50, 23), (20, 0), (10, 0)]
+        via_points_C = [(50, 60), (30, 70), (10, 35), (30, 0), (50, 10)]
+        via_points_D = [(10, 0), (10, 70), (20, 70),
+                        (50, 47), (50, 23), (20, 0), (10, 0)]
+        via_points_E = [(50, 70), (10, 70), (10, 35),
+                        (30, 35), (10, 35), (10, 0), (50, 0)]
+        via_points_F = [(50, 70), (10, 70), (10, 35),
+                        (30, 35), (10, 35), (10, 0)]
+        via_points_G = [(50, 60), (30, 70), (10, 35), (30, 0),
+                        (50, 10), (50, 25), (35, 25)]
+        via_points_H = [(10, 70), (10, 0), (10, 35),
+                        (50, 35), (50, 70), (50, 0)]
+        via_points_I = [(30, 70), (30, 0)]
+        via_points_J = [(10, 20), (30, 0), (50, 20), (50, 70)]
+        via_points_K = [(10, 70), (10, 0), (10, 35),
+                        (50, 70), (10, 35), (50, 0)]
+        via_points_L = [(10, 70), (10, 0), (50, 0)]
+        via_points_M = [(10, 0), (10, 70), (30, 35), (50, 70), (50, 0)]
+        via_points_N = [(10, 0), (10, 70), (50, 0), (50, 70)]
+        via_points_O = [(50, 20), (30, 0), (10, 20), (10, 50),
+                        (30, 70), (50, 50), (50, 20)]
+        via_points_P = [(10, 0), (10, 70), (30, 70),
+                        (50, 50), (30, 35), (10, 35)]
+        via_points_Q = [(50, 20), (30, 0), (10, 20), (10, 50),
+                        (30, 70), (50, 50), (50, 20), (60, 0)]
+        via_points_R = [(10, 0), (10, 70), (30, 70), (50, 50),
+                        (30, 35), (10, 35), (50, 0)]
+        via_points_S = [(50, 70), (10, 70), (10, 35),
+                        (50, 35), (50, 0), (10, 0)]
+        via_points_T = [(50, 70), (10, 70), (30, 70), (30, 0)]
+        via_points_U = [(10, 70), (10, 20), (30, 0), (50, 20), (50, 70)]
+        via_points_V = [(10, 70), (30, 0), (50, 70)]
+        via_points_W = [(10, 70), (20, 0), (30, 35), (40, 0), (50, 70)]
+        via_points_X = [(10, 70), (50, 0), (30, 35), (50, 70), (10, 0)]
+        via_points_Y = [(10, 70), (30, 35), (50, 70), (10, 0)]
+        via_points_Z = [(10, 70), (50, 70), (10, 0), (50, 0)]
+
+        Alphabet = [via_points_A,
+                    via_points_B,
+                    via_points_C,
+                    via_points_D,
+                    via_points_E,
+                    via_points_F,
+                    via_points_G,
+                    via_points_H,
+                    via_points_I,
+                    via_points_J,
+                    via_points_K,
+                    via_points_L,
+                    via_points_M,
+                    via_points_N,
+                    via_points_O,
+                    via_points_P,
+                    via_points_Q,
+                    via_points_R,
+                    via_points_S,
+                    via_points_T,
+                    via_points_U,
+                    via_points_V,
+                    via_points_W,
+                    via_points_X,
+                    via_points_Y,
+                    via_points_Z]
+
+        # Extract x and y coordinates from the list of tuples
+        scalar = self.scale_factor * self.board_scale
+        x_values = [scalar * pt[0] for pt in Alphabet[idx]]
+        y_values = [scalar * pt[1] for pt in Alphabet[idx]]
+        point_dict = {letter: {'xlist': x_values, 'ylist': y_values}}
+        return point_dict
 
     def process_letter_points(self, letter):
         """
@@ -279,13 +341,11 @@ class Brain(Node):
         """Timer running at a specified frequency."""
         if self.state == State.INITIALIZE:
             self.get_logger().error('Initializing the board')
-            
-            
+
             # Initializes the kickstart feature then waits for completion
             # await self.kickstart_client.call_async(request=Empty.Request())
             await self.cal_client.call_async(request=Empty.Request())
-            
-            
+
             goal_js = MovePose.Request()
             goal_js.target_pose.position = Point(
                 x=0.545029890155533, y=0.05943234468738731, z=0.58935441642377)

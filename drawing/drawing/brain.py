@@ -117,7 +117,7 @@ class Brain(Node):
             if letter == '0':  # Head of man
                 xvec = []
                 yvec = []
-                q = 25
+                q = 4
                 for t in range(0, q+1):
                     x = 35*np.cos(2*np.pi*t/q)
                     y = 35+35*np.sin(2*np.pi*t/q)
